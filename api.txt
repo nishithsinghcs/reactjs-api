@@ -1,0 +1,38 @@
+// client/src/api/companyService.js
+import axios from 'axios';
+
+export const fetchCompanyData = async (companyId) => {
+  const query = `
+    query GetCompany($id: String!) {
+      company(id: $id) {
+        id
+        name
+        industry
+        description
+      }
+    }
+  `;
+
+  const variables = { id: companyId };
+
+  const response = await axios.post('/crm-api-graphql/query', { query, variables });
+  return response.data;
+};
+
+export const updateCompanyData = async (companyId, name, industry) => {
+  const mutation = `
+    mutation UpdateCompany($id: String!, $name: String!, $industry: String!) {
+      updateCompany(id: $id, name: $name, industry: $industry) {
+        id
+        name
+        industry
+        description
+      }
+    }
+  `;
+
+  const variables = { id: companyId, name, industry };
+
+  const response = await axios.post('/crm-api-graphql/mutation', { mutation, variables });
+  return response.data;
+};
