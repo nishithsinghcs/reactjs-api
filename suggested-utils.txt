@@ -1,0 +1,237 @@
+In a CRM (Customer Relationship Management) application, utility functions play a critical role in enhancing code reusability, improving code readability, and handling common tasks efficiently. Here are some suggested utilities (utils) that you might consider including in your CRM application:
+
+1. Validation Utilities
+Purpose: Validate user inputs, form fields, and data before processing.
+Examples:
+typescript
+Copy code
+// src/utils/validators.ts
+export const isValidEmail = (email: string): boolean => {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email);
+};
+
+export const isValidPhoneNumber = (phone: string): boolean => {
+  const re = /^\+?[1-9]\d{1,14}$/; // E.164 format
+  return re.test(phone);
+};
+
+export const isEmpty = (value: string | any[]): boolean => {
+  return value.length === 0;
+};
+2. Formatting Utilities
+Purpose: Format data like dates, currency, or phone numbers for consistent display across the app.
+Examples:
+typescript
+Copy code
+// src/utils/formatters.ts
+export const formatCurrency = (amount: number, currency: string = 'USD'): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+  }).format(amount);
+};
+
+export const formatDate = (date: Date | string): string => {
+  return new Intl.DateTimeFormat('en-US').format(new Date(date));
+};
+
+export const formatPhoneNumber = (phone: string): string => {
+  const cleaned = ('' + phone).replace(/\D/g, '');
+  const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+  if (match) {
+    return `(${match[1]}) ${match[2]}-${match[3]}`;
+  }
+  return phone;
+};
+3. Error Handling Utilities
+Purpose: Handle errors uniformly across the application, log errors, and display user-friendly messages.
+Examples:
+typescript
+Copy code
+// src/utils/errorHandler.ts
+export const handleError = (error: any): void => {
+  console.error('An error occurred:', error.message || error);
+  alert('An error occurred. Please try again later.');
+};
+
+export const logError = (error: any, additionalInfo?: any): void => {
+  // Send the error details to an external logging service
+  console.error('Logging error:', error, additionalInfo);
+};
+4. Authorization Utilities
+Purpose: Manage user roles and permissions, check access rights for different parts of the application.
+Examples:
+typescript
+Copy code
+// src/utils/authUtils.ts
+export const hasRole = (userRoles: string[], requiredRole: string): boolean => {
+  return userRoles.includes(requiredRole);
+};
+
+export const canAccessPage = (userRoles: string[], allowedRoles: string[]): boolean => {
+  return allowedRoles.some((role) => userRoles.includes(role));
+};
+5. Storage Utilities
+Purpose: Handle local storage or session storage operations (e.g., storing tokens, user preferences).
+Examples:
+typescript
+Copy code
+// src/utils/storage.ts
+export const saveToLocalStorage = (key: string, value: any): void => {
+  localStorage.setItem(key, JSON.stringify(value));
+};
+
+export const getFromLocalStorage = (key: string): any | null => {
+  const value = localStorage.getItem(key);
+  return value ? JSON.parse(value) : null;
+};
+
+export const removeFromLocalStorage = (key: string): void => {
+  localStorage.removeItem(key);
+};
+
+export const clearLocalStorage = (): void => {
+  localStorage.clear();
+};
+6. API Utility
+Purpose: Manage API calls, especially when using Axios, to simplify and standardize HTTP requests.
+Examples:
+typescript
+Copy code
+// src/utils/apiUtils.ts
+import axiosClient from '../api/axiosClient';
+
+export const fetchData = async (url: string, params?: object): Promise<any> => {
+  try {
+    const response = await axiosClient.get(url, { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    throw error;
+  }
+};
+
+export const postData = async (url: string, data: object): Promise<any> => {
+  try {
+    const response = await axiosClient.post(url, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error posting data:', error);
+    throw error;
+  }
+};
+7. Debounce Utility
+Purpose: Control the rate at which a function (like an API call) is executed, especially useful in search bars.
+Examples:
+typescript
+Copy code
+// src/utils/debounce.ts
+export const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
+8. Notification Utility
+Purpose: Manage notifications (e.g., toasts) across the application.
+Examples:
+typescript
+Copy code
+// src/utils/notifications.ts
+export const showSuccess = (message: string): void => {
+  // Use a library like react-toastify or a custom implementation
+  alert(`Success: ${message}`);
+};
+
+export const showError = (message: string): void => {
+  alert(`Error: ${message}`);
+};
+9. Pagination Utility
+Purpose: Handle pagination logic for lists and tables.
+Examples:
+typescript
+Copy code
+// src/utils/pagination.ts
+export const paginate = (items: any[], pageNumber: number, pageSize: number) => {
+  const startIndex = (pageNumber - 1) * pageSize;
+  return items.slice(startIndex, startIndex + pageSize);
+};
+
+export const getPaginationData = (totalItems: number, currentPage: number, pageSize: number) => {
+  const totalPages = Math.ceil(totalItems / pageSize);
+  return {
+    currentPage,
+    totalPages,
+    hasPrevious: currentPage > 1,
+    hasNext: currentPage < totalPages,
+  };
+};
+10. Date and Time Utilities
+Purpose: Manage and manipulate dates and times, especially for scheduling and logs.
+Examples:
+typescript
+Copy code
+// src/utils/dateUtils.ts
+export const getCurrentDate = (): string => {
+  return new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+};
+
+export const addDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
+export const formatDateTime = (date: Date | string): string => {
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(date));
+};
+11. Debounce and Throttle Utilities
+Purpose: Manage function execution frequency to improve performance, particularly for event-driven functions like scrolling or resizing.
+Examples:
+typescript
+Copy code
+// src/utils/debounceThrottle.ts
+export const debounce = (func: Function, delay: number) => {
+  let timeoutId: NodeJS.Timeout;
+  return (...args: any[]) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
+
+export const throttle = (func: Function, limit: number) => {
+  let inThrottle: boolean;
+  return function (...args: any[]) {
+    if (!inThrottle) {
+      func(...args);
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
+    }
+  };
+};
+Summary
+Validation Utilities: Ensure data integrity across the CRM.
+Formatting Utilities: Maintain consistent data presentation.
+Error Handling Utilities: Standardize error logging and user feedback.
+Authorization Utilities: Control user access and roles.
+Storage Utilities: Simplify interactions with local and session storage.
+API Utility: Standardize API interactions, reducing repetitive code.
+Debounce Utility: Enhance performance in scenarios like search and input handling.
+Notification Utility: Centralize user notifications for success, warnings, and errors.
+Pagination Utility: Manage large datasets efficiently.
+Date and Time Utilities: Handle and manipulate dates and times in a standardized way.
+These utilities will help you build a robust and maintainable CRM application by promoting code reuse, improving readability, and ensuring consistent behavior across the application.
+
+
+
+
+
+
