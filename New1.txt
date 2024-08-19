@@ -1,0 +1,78 @@
+To log method invocations and responses in a single line for a request in a Spring Boot application using Logback, without making changes to the existing code, you can use a custom Logback configuration with a ThreadLocal-based approach. This approach captures all method invocations and their responses in the context of a single request and logs them in the desired format.
+
+Step-by-Step Approach:
+
+	1.	Custom Logback Appender: Create a custom Logback appender that aggregates log messages in a ThreadLocal variable and writes them out in one line at the end of the request.
+	2.	Logback Configuration: Configure Logback to use this custom appender.
+
+1. Custom Logback Appender
+
+Create a custom appender by extending ch.qos.logback.core.AppenderBase. The appender will store logs in a ThreadLocal variable and flush them as a single log entry at the end of the request.
+
+import ch.qos.logback.core.AppenderBase;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import org.slf4j.MDC;
+
+public class AggregatingAppender extends AppenderBase<ILoggingEvent> {
+
+    private static final ThreadLocal<StringBuilder> logBuffer = ThreadLocal.withInitial(StringBuilder::new);
+
+    @Override
+    protected void append(ILoggingEvent eventObject) {
+        StringBuilder buffer = logBuffer.get();
+        buffer.append(eventObject.getFormattedMessage()).append(" | ");
+        
+        // If the event is the last in the request, flush the log
+        if (isEndOfRequest(eventObject)) {
+            flushLogs();
+
+
+
+
+        }
+    }
+
+    private boolean isEndOfRequest(ILoggingEvent event) {
+        // Implement logic to detect end of request (e.g., checking for a specific log message)
+        return event.getMessage().contains("END_OF_REQUEST");
+    }
+
+    private void flushLogs() {
+        StringBuilder buffer = logBuffer.get();
+        // Log the accumulated messages
+        System.out.println(buffer.toString());
+        // Clear the buffer for the next request
+        logBuffer.remove();
+    }
+}
+
+2. Logback Configuration
+
+You need to add this custom appender to your logback.xml configuration. Here’s an example:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <appender name="AGGREGATING" class="com.yourpackage.AggregatingAppender" />
+
+    <root level="INFO">
+        <appender-ref ref="AGGREGATING" />
+    </root>
+
+</configuration>
+
+3. Ensuring Logging at the End of the Request
+
+To ensure that the log is written out at the end of each request, you could add a marker log message like "END_OF_REQUEST" at the end of your controller methods or wherever you determine the request is fully processed. You can do this without changing the core logic, by using an aspect or a filter.
+
+Note: Using aspects or filters might require some code changes, but this approach provides flexibility for handling logs at the request level.
+
+Summary
+
+With this approach:
+
+	•	Custom Appender: Aggregates logs across the request lifecycle.
+	•	Single Log Entry: Logs all method calls and responses as a single line in the desired format.
+	•	No Core Logic Change: You avoid modifying the existing business logic by implementing this at the logging level.
+
+This is a high-level overview, and the actual implementation might require adjustments based on your specific use case and Spring Boot setup.
