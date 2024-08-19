@@ -1,0 +1,155 @@
+To ensure that logging occurs once per API request, you can use different strategies in addition to or as an alternative to the method provided earlier. Here are two more approaches that can be implemented to achieve this:
+
+### 1. **Using `ThreadLocal` for Accumulating Logs and Interceptor to Log Once Per Request**
+
+
+This approach utilizes Spring’s interceptor mechanism, which allows you to perform operations before and after an HTTP request is processed.
+
+#### Steps:
+
+1. **Create a `ThreadLocal` to Accumulate Logs:**
+   - Similar to the previous example, use `ThreadLocal` to gather all logs within the scope of an HTTP request.
+
+2. **Create a `HandlerInterceptor` Implementation:**
+   - Use a Spring `HandlerInterceptor` to intercept requests before they are handled by controllers and after the request is processed.
+
+3. **Log the Accumulated Logs After the Request is Processed:**
+   - Within the `afterCompletion` method of the `HandlerInterceptor`, output the accumulated log and clean up the `ThreadLocal`.
+
+#### Example Code:
+
+```java
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.HandlerInterceptor;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+@Component
+public class RequestLoggingInterceptor implements HandlerInterceptor {
+
+    private static final Logger logger = LoggerFactory.getLogger(RequestLoggingInterceptor.class);
+    private static final ThreadLocal<StringBuilder> logAccumulator = ThreadLocal.withInitial(StringBuilder::new);
+
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        logAccumulator.get().append("Start Request | ");
+        return true;
+    }
+
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+        String logEntry = logAccumulator.get().append("End Request").toString();
+        logger.info(logEntry);
+        logAccumulator.remove();  // Clean up the ThreadLocal
+    }
+
+    public static void log(String message) {
+        logAccumulator.get().append(message).append(" | ");
+    }
+}
+```
+
+4. **Log Method Calls:**
+
+Inside your services or controllers, you can log the method invocations like this:
+
+```java
+public void someServiceMethod() {
+    RequestLoggingInterceptor.log("someServiceMethod executed");
+    // Your business logic here
+}
+```
+
+5. **Register the Interceptor:**
+
+Finally, register the `RequestLoggingInterceptor` in your Spring configuration:
+
+```java
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+
+    @Autowired
+    private RequestLoggingInterceptor requestLoggingInterceptor;
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(requestLoggingInterceptor);
+    }
+}
+```
+
+### 2. **Spring AOP Combined with `@AfterReturning` for Logging After All Methods**
+
+Another approach is to use Spring AOP with an aspect that logs the request information after the entire processing has been completed.
+
+#### Steps:
+
+1. **Define an Aspect that Logs the Request After Completion:**
+
+   Create an aspect that collects logs during the request processing and then logs them at the end of the request.
+
+#### Example Code:
+
+```java
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+@Aspect
+@Component
+public class LoggingAspect {
+
+    private static final Logger logger = LoggerFactory.getLogger(LoggingAspect.class);
+    private static final ThreadLocal<StringBuilder> logAccumulator = ThreadLocal.withInitial(StringBuilder::new);
+
+    @Pointcut("within(@org.springframework.web.bind.annotation.RestController *) || within(@org.springframework.stereotype.Service *)")
+    public void applicationMethods() {}
+
+    @Before("applicationMethods()")
+    public void logBeforeMethod(JoinPoint joinPoint) {
+        StringBuilder logBuilder = logAccumulator.get();
+        logBuilder.append(joinPoint.getSignature().getDeclaringTypeName())
+                  .append(".").append(joinPoint.getSignature().getName())
+                  .append(" called with args: ")
+                  .append(Arrays.toString(joinPoint.getArgs()))
+                  .append(" | ");
+    }
+
+    @AfterReturning(pointcut = "applicationMethods()", returning = "result")
+    public void logAfterMethod(JoinPoint joinPoint, Object result) {
+        StringBuilder logBuilder = logAccumulator.get();
+        logBuilder.append(joinPoint.getSignature().getDeclaringTypeName())
+                  .append(".").append(joinPoint.getSignature().getName())
+                  .append(" returned: ").append(result)
+                  .append(" | ");
+    }
+
+    @AfterReturning("execution(* org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handle(..))")
+    public void logAfterRequest() {
+        logger.info(logAccumulator.get().toString());
+        logAccumulator.remove(); // Clean up
+    }
+}
+```
+
+### Benefits:
+
+- **Once per Request Logging:** Ensures that logs are only outputted once per request.
+- **Flexible:** Can be easily integrated into existing Spring applications.
+
+### Summary:
+
+Both methods ensure that your application logs only once per API request, thus providing a clean and concise log output that helps in better traceability of the requests. The first approach uses interceptors, and the second approach leverages AOP, both offering a robust mechanism for request logging in Spring Boot applications.
