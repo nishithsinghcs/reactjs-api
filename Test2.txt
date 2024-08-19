@@ -1,0 +1,141 @@
+To achieve detailed logging in a Spring Boot application using Logback, including logging for error, info, and warnings, along with request and response logging in a single line format, follow the steps below.
+
+1. Logback Configuration (logback.xml)
+
+First, configure logback.xml in the src/main/resources directory to handle error, info, and warning logs. Additionally, we’ll add an application-specific logger for capturing method-level request and response data.
+
+Here’s a sample logback.xml configuration:
+
+<configuration>
+
+<!-- Define the log pattern -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} | %msg%n"/>
+
+    <!-- Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File Appender for all logs -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/application.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/application-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory
+
+
+
+
+
+
+>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Logger for capturing INFO logs -->
+    <logger name="com.yourcompany.yourapp" level="INFO">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Root logger to capture all logs -->
+    <root level="INFO">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
+
+2. Log Method Request and Response in One Line
+
+For logging method request and response, we can create an Aspect using Spring AOP. This aspect will log all method calls along with their request and response in a single line.
+
+Here’s a sample aspect implementation:
+
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+import java.util.Arrays;
+
+@Aspect
+@Component
+public class LoggingAspect {
+
+    private static final Logger logger = LoggerFactory.getLogger(LoggingAspect.class);
+    private static final ThreadLocal<StringBuilder> requestResponseLog = new ThreadLocal<>();
+
+    @Pointcut("execution(* com.yourcompany.yourapp.controller..*(..))")
+    public void controllerMethods() {
+    }
+
+    @Before("controllerMethods()")
+    public void logBefore(JoinPoint joinPoint) {
+        StringBuilder logBuilder = new StringBuilder();
+        logBuilder.append(System.currentTimeMillis()).append(" | ")
+                  .append(joinPoint.getSignature().getDeclaringTypeName()).append(".")
+                  .append(joinPoint.getSignature().getName()).append(" | ")
+                  .append("Request: ").append(Arrays.toString(joinPoint.getArgs())).append(" | ");
+        requestResponseLog.set(logBuilder);
+    }
+
+    @AfterReturning(pointcut = "controllerMethods()", returning = "result")
+    public void logAfter(JoinPoint joinPoint, Object result) {
+        StringBuilder logBuilder = requestResponseLog.get();
+        if (logBuilder != null) {
+            logBuilder.append("Response: ").append(result);
+            logger.info(logBuilder.toString());
+            requestResponseLog.remove();
+        }
+    }
+}
+
+Explanation:
+
+	•	Pointcut Definition: The controllerMethods() pointcut defines which methods in your application should be intercepted. In this case, it’s targeting all methods within controllers.
+	•	Before Advice: The logBefore() method logs the method name and its input arguments (the request). It stores this log in a thread-local variable for later use.
+	•	AfterReturning Advice: The logAfter() method appends the response to the log and prints the entire request and response log in a single line. It uses the thread-local variable to ensure that the log data is properly correlated.
+
+3. Integrating Logger in Your Service
+
+You can also add the logger in your service methods to log specific details:
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+@Service
+public class MyService {
+
+    private static final Logger logger = LoggerFactory.getLogger(MyService.class);
+
+    public void performAction() {
+        logger.info("Performing an action");
+        try {
+            // Perform some action
+        } catch (Exception e) {
+            logger.error("An error occurred while performing the action", e);
+        }
+    }
+}
+
+4. Running the Application
+
+When you run your Spring Boot application, it will log requests and responses for all methods in the controllers defined in your aspect. The logs will appear in the format defined in the logback.xml configuration, both in the console and in the file.
+
+Summary
+
+	•	Logback Configuration: The logback.xml is set up to handle log levels and output them to both the console and a file.
+	•	Aspect-Oriented Logging: An aspect is used to log method request and response in a single line.
+	•	Service-Level Logging: The logger can be injected into services to log important actions, errors, and warnings.
+
+This setup provides a comprehensive logging solution that includes both standard logging and detailed, single-line request-response logging in your Spring Boot application.
