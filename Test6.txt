@@ -1,0 +1,109 @@
+To ensure that all method calls within an API request are logged on a single line, you can use a combination of Spring AOP and a `ThreadLocal` to collect and concatenate log information. Here's how to achieve this:
+
+### 1. **Create a Logging Aspect**
+
+The aspect will intercept method calls and accumulate log entries in a `ThreadLocal` variable. After the API request is completed, all the collected logs will be flushed as a single log entry.
+
+#### LoggingAspect.java
+
+```java
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+@Aspect
+@Component
+public class LoggingAspect {
+
+    private static final Logger logger = LoggerFactory.getLogger(LoggingAspect.class);
+    private static final ThreadLocal<StringBuilder> logAccumulator = ThreadLocal.withInitial(StringBuilder::new);
+
+    @Pointcut("within(@org.springframework.web.bind.annotation.RestController *)")
+    public void controllerMethods() {}
+
+    @Pointcut("within(@org.springframework.stereotype.Service *)")
+    public void serviceMethods() {}
+
+    @Before("controllerMethods() || serviceMethods()")
+    public void logBeforeMethod(JoinPoint joinPoint) {
+        StringBuilder logBuilder = logAccumulator.get();
+        logBuilder.append(joinPoint.getSignature().getDeclaringTypeName()).append(".")
+                  .append(joinPoint.getSignature().getName()).append(" | ")
+                  .append("Request: ").append(Arrays.toString(joinPoint.getArgs())).append(" | ");
+    }
+
+    @AfterReturning(pointcut = "controllerMethods() || serviceMethods()", returning = "result")
+    public void logAfterMethod(JoinPoint joinPoint, Object result) {
+        StringBuilder logBuilder = logAccumulator.get();
+        logBuilder.append("Response: ").append(result).append(" | ");
+    }
+
+    @AfterReturning("controllerMethods()")
+    public void logApiRequest() {
+        String logEntry = logAccumulator.get().toString();
+        logger.info(logEntry);
+        logAccumulator.remove();  // Clean up the ThreadLocal to avoid memory leaks
+    }
+}
+```
+
+### 2. **Logback Configuration**
+
+Configure Logback to handle the logs and output them as needed. Here’s a sample `logback.xml` configuration:
+
+#### logback.xml
+
+```xml
+<configuration>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} | %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/application.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/application-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="com.yourcompany.yourapp" level="INFO">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
+```
+
+### 3. **Explanation**
+
+- **ThreadLocal Logging**: The `ThreadLocal<StringBuilder>` ensures that each API request logs method calls separately, preventing logs from different threads from mixing.
+- **@Before**: Logs the method name and request arguments before the method executes.
+- **@AfterReturning**: Logs the method’s response after it executes.
+- **@AfterReturning("controllerMethods()")**: After the controller has processed the request, the entire accumulated log is flushed as a single line entry in the log file.
+
+### 4. **Usage**
+
+By including this aspect in your Spring Boot project, all method calls within the lifecycle of an API request will be logged on a single line, with the structure:
+
+```
+Time | serviceName | controller.method1 | request1 | response1 | controller.method2 | request2 | response2 ...
+```
+
+This approach not only provides a clean and concise log output but also makes it easier to track the flow and interactions within your application for each request. This is particularly useful for debugging and auditing.
