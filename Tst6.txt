@@ -1,0 +1,126 @@
+To ensure that all method calls during an API request are logged as a single line, you can modify the approach to ensure that only one log entry per API request is produced. Here’s how you can achieve that:
+
+1. Collect Logs Across Method Calls in a ThreadLocal
+
+Ensure that logs are collected throughout the execution of the API request, and only output the log once the request is complete.
+
+2. Use an Interceptor or Filter
+
+To ensure that the log is only printed once per request, you can use a filter or interceptor to handle the final log output after the request is processed.
+
+Example Code
+
+
+
+Here’s how to implement it:
+
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+@Aspect
+@Component
+public class LoggingAspect {
+
+    private static final Logger logger = LoggerFactory.getLogger(LoggingAspect.class);
+    private static final ThreadLocal<StringBuilder> logAccumulator = ThreadLocal.withInitial(StringBuilder::new);
+
+    @Pointcut("within(@org.springframework.web.bind.annotation.RestController *)")
+    public void controllerMethods() {}
+
+    @Pointcut("within(@org.springframework.stereotype.Service *)")
+    public void serviceMethods() {}
+
+    @Before("controllerMethods() || serviceMethods()")
+    public void logBeforeMethod(JoinPoint joinPoint) {
+        StringBuilder logBuilder = logAccumulator.get();
+        logBuilder.append(joinPoint.getSignature().getDeclaringTypeName()).append(".")
+                  .append(joinPoint.getSignature().getName()).append(" | ")
+                  .append("Request: ").append(Arrays.toString(joinPoint.getArgs())).append(" | ");
+    }
+
+    @AfterReturning(pointcut = "controllerMethods() || serviceMethods()", returning = "result")
+    public void logAfterMethod(JoinPoint joinPoint, Object result) {
+        StringBuilder logBuilder = logAccumulator.get();
+        logBuilder.append("Response: ").append(result).append(" | ");
+    }
+
+    public static String flushLogs() {
+        String logEntry = logAccumulator.get().toString();
+        logAccumulator.remove();  // Clean up the ThreadLocal to avoid memory leaks
+        return logEntry;
+    }
+}
+
+@Component
+public class LoggingFilter extends OncePerRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(LoggingFilter.class);
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+        filterChain.doFilter(request, response);
+        logger.info(LoggingAspect.flushLogs());  // This ensures that the logs are flushed only once per request
+    }
+
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+        // Optional init configuration
+    }
+
+    @Override
+    public void destroy() {
+        // Optional cleanup on filter destroy
+    }
+}
+
+3. How This Works
+
+	•	LoggingAspect: This collects logs at each method invocation during the API call and stores them in a ThreadLocal variable.
+	•	LoggingFilter: The OncePerRequestFilter ensures that at the end of every request, the accumulated logs are output in a single line. It calls the flushLogs() method after the filter chain completes processing, ensuring that all logs are collected and then printed in one go.
+
+4. Logback Configuration
+
+To handle the actual logging, ensure your logback.xml is set up to format and output the logs:
+
+<configuration>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} | %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>
+
+5. Benefit of This Approach
+
+By utilizing a filter to handle the final log output, you ensure that the log for each API request is concise and provides a full overview of the request and response process in a single line. This is particularly useful for tracking the flow of a single request through multiple service layers, making debugging and auditing much more efficient.
+
+Example Output
+
+The final log output would look something like this for a single API request:
+
+2024-08-19 10:23:45 | com.example.MyController.method1 | Request: [param1, param2] | Response: response1 | com.example.MyService.method2 | Request: [param3] | Response: response2 |
+
+This format keeps all relevant information in a single log entry, making it easy to trace the entire lifecycle of a request.
