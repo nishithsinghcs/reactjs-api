@@ -1,0 +1,176 @@
+To create a React web component that includes CSS, fonts, and images from the node_modules/@citi/icdgs/dist/ directory, and then load it into Salesforce using an Aura component, follow these steps:
+
+Step 1: Set Up Your React Component with CSS, Fonts, and Images from node_modules/@citi/icdgs/dist/
+
+	1.	Create the React Component
+We’ll create a React component that uses styles, fonts, and images sourced from @citi/icdgs/dist.
+Component Structure:
+
+my-react-component/
+├── src/
+│   ├── MyReactComponent.js
+│   ├── index.js
+├── webpack.config.js
+├── package.json
+
+
+	2.	Install Required Packages
+First, ensure that you have the @citi/icdgs package installed:
+
+npm install @citi/icdgs
+
+
+	3.	Create the React Component and Import CSS, Font, and Images
+src/MyReactComponent.js:
+
+import React from 'react';
+import '@citi/icdgs/dist/styles.css';  // Import CSS from the package
+
+const MyReactComponent = () => {
+    return (
+        <div className="icdgs-container text-center">
+            <h1 className="icdgs-heading">Hello from React Component!</h1>
+            <p className="icdgs-font">
+                This text is styled with fonts from the ICDGS package.
+            </p>
+            <img src={require('@citi/icdgs/dist/images/sample-image.png')} alt="Sample" className="icdgs-image" />
+        </div>
+    );
+};
+
+export default MyReactComponent;
+
+src/index.js:
+
+import React from 'react';
+import ReactDOM from 'react-dom';
+import MyReactComponent from './MyReactComponent';
+
+const renderMyComponent = (elementId) => {
+    const container = document.getElementById(elementId);
+    if (container) {
+        ReactDOM.render(<MyReactComponent />, container);
+    } else {
+        console.error(`Container with ID ${elementId} not found.`);
+    }
+};
+
+window.renderMyComponent = renderMyComponent;
+
+
+	4.	Configure Webpack to Bundle the React Component
+webpack.config.js:
+
+const path = require('path');
+
+module.exports = {
+    entry: './src/index.js',
+    output: {
+        path: path.resolve(__dirname, 'dist'),
+        filename: 'myReactComponentBundle.js',
+        library: 'MyReactComponent',
+        libraryTarget: 'umd',
+    },
+    module: {
+        rules: [
+            {
+                test: /\.(js|jsx)$/,
+                exclude: /node_modules/,
+                use: {
+                    loader: 'babel-loader',
+                    options: {
+                        presets: ['@babel/preset-env', '@babel/preset-react'],
+                    },
+                },
+            },
+            {
+                test: /\.css$/,
+                use: ['style-loader', 'css-loader'],
+            },
+            {
+                test: /\.(png|jpg|gif|svg|ttf|woff|woff2|eot)$/,
+                use: [
+                    {
+                        loader: 'file-loader',
+                        options: {
+                            name: 'assets/[name].[ext]',
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+    resolve: {
+        alias: {
+            '@citi/icdgs': path.resolve(__dirname, 'node_modules/@citi/icdgs/dist'),
+        },
+    },
+};
+
+
+	5.	Bundle the React Component
+Install any additional dependencies required for Webpack:
+
+npm install --save-dev webpack webpack-cli babel-loader @babel/core @babel/preset-env @babel/preset-react css-loader style-loader file-loader
+
+Then, run Webpack to bundle your React component, including the CSS, fonts, and images from @citi/icdgs:
+
+npx webpack
+
+This command generates a dist/ directory containing the myReactComponentBundle.js file and the necessary assets.
+
+Step 2: Upload the Bundled React Component to Salesforce
+
+	1.	Prepare the Static Resource
+	•	Zip the contents of the dist folder into a file named ReactComponentBundle.zip.
+	2.	Upload the Static Resource
+	•	Go to Setup > Static Resources in Salesforce.
+	•	Click New and upload the ReactComponentBundle.zip file.
+	•	Name it something like ReactComponentBundle.
+
+Step 3: Create an Aura Component to Load the React Component
+
+	1.	Create the Aura Component
+In Salesforce, go to Setup > Developer Console. Create a new Aura component named ReactAppContainer.
+	2.	Define the Aura Component
+ReactAppContainer.cmp:
+
+<aura:component implements="flexipage:availableForAllPageTypes,force:appHostable" access="global">
+    <ltng:require scripts="{!$Resource.ReactComponentBundle + '/myReactComponentBundle.js'}"
+                  afterScriptsLoaded="{!c.afterScriptsLoaded}" />
+    <div id="reactContainer">
+        <!-- React component will render here -->
+    </div>
+</aura:component>
+
+ReactAppContainerController.js:
+
+({
+    afterScriptsLoaded: function(component, event, helper) {
+        if (window.renderMyComponent) {
+            window.renderMyComponent('reactContainer');
+        } else {
+            console.error("renderMyComponent function is not defined.");
+        }
+    }
+})
+
+
+
+Step 4: Add the Aura Component to a Lightning Page
+
+	1.	Navigate to the Lightning App Builder
+	•	Go to Setup > Lightning App Builder.
+	•	Create or edit a Lightning page.
+	2.	Add the Aura Component to the Page
+	•	Drag the ReactAppContainer component onto the page.
+	3.	Save and Activate the Page
+	•	Save your changes and activate the page.
+
+Step 5: Verify the Integration
+
+	•	Navigate to the page where you added the Aura component. The React component should render with the CSS styles, fonts, and images from the @citi/icdgs package.
+
+Summary
+
+By following these steps, you’ve successfully created a React web component that utilizes CSS, fonts, and images from the node_modules/@citi/icdgs/dist/ directory. You then bundled it using Webpack and loaded it into Salesforce using an Aura component. This approach allows you to leverage existing assets from your npm package within the Salesforce platform.
