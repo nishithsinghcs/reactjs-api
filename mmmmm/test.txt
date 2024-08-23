@@ -1,0 +1,188 @@
+get variable value from route in salesforce and load react js web component  loaded through aura in salesforce screen
+
+ 
+To achieve the integration of a React.js web component into a Salesforce screen using Aura and to retrieve a variable value from the route, you can follow these general steps:
+
+1. Set Up the Salesforce Route and Component:
+You need to create a Salesforce Aura Component or Lightning Web Component (LWC) that will load the React.js application.
+Ensure that your Salesforce component can access the URL route parameters.
+2. Access Route Parameters in Salesforce:
+Use PageReference in LWC or Aura to access the route parameters.
+
+Example in LWC:
+
+javascript
+Copy code
+import { LightningElement, wire } from 'lwc';
+import { CurrentPageReference } from 'lightning/navigation';
+
+export default class MyComponent extends LightningElement {
+    paramValue;
+
+    @wire(CurrentPageReference)
+    setCurrentPageReference(currentPageReference) {
+        if (currentPageReference) {
+            this.paramValue = currentPageReference.state.c__yourParam;
+        }
+    }
+}
+Example in Aura:
+
+javascript
+Copy code
+({
+    doInit: function (component, event, helper) {
+        var pageReference = component.get("v.pageReference");
+        var yourParam = pageReference.state.c__yourParam;
+        component.set("v.yourParam", yourParam);
+    }
+})
+3. Load React.js Application in Aura Component:
+You can use an Aura Component to load your React.js application using a <div> element and embedding your React.js code within it.
+
+Example Aura Component:
+
+aura
+Copy code
+<aura:component implements="force:appHostable,flexipage:availableForAllPageTypes">
+    <aura:attribute name="paramValue" type="String"/>
+    <div id="reactApp"></div>
+
+    <ltng:require
+        scripts="{!$Resource.ReactApp + '/dist/main.js'}"
+        afterScriptsLoaded="{!c.initReactApp}"/>
+</aura:component>
+Add your JavaScript logic to load the React.js application:
+
+javascript
+Copy code
+({
+    initReactApp: function(component, event, helper) {
+        var paramValue = component.get("v.paramValue");
+        ReactDOM.render(
+            React.createElement(YourReactComponent, { param: paramValue }),
+            document.getElementById('reactApp')
+        );
+    }
+})
+4. Pass Route Parameters to React Component:
+Ensure that your React.js component can accept props, which you can pass from the Aura Component as demonstrated above.
+
+Example React Component:
+
+javascript
+Copy code
+export default function YourReactComponent(props) {
+    return (
+        <div>
+            <h1>Parameter Value: {props.param}</h1>
+        </div>
+    );
+}
+5. Deploy and Test:
+Deploy your Aura Component or LWC to Salesforce.
+Test the functionality by navigating to a URL that includes the required parameters and verifying that your React.js component is rendered with the correct data.
+Summary:
+This solution involves setting up a Salesforce component to read route parameters, then using Aura or LWC to embed a React.js component and pass these parameters to it. Ensure that your React.js component is correctly loaded and rendered inside the Salesforce environment.
+
+
+
+
+ -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+call  apolo client  in react js in web component 
+ 
+To use Apollo Client in a React.js web component, you’ll first need to install Apollo Client and set it up in your React application. Below is a step-by-step guide to get you started:
+
+1. Install Apollo Client and GraphQL:
+First, you need to install the necessary packages:
+
+bash
+Copy code
+npm install @apollo/client graphql
+2. Set Up Apollo Client:
+You need to create an Apollo Client instance and provide it to your React component tree.
+
+javascript
+Copy code
+import React from 'react';
+import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client';
+
+const client = new ApolloClient({
+  uri: 'https://your-graphql-endpoint.com/graphql',
+  cache: new InMemoryCache(),
+});
+
+const App = () => (
+  <ApolloProvider client={client}>
+    <YourComponent />
+  </ApolloProvider>
+);
+
+export default App;
+3. Use Apollo Client in a React Component:
+Once the Apollo Client is set up, you can use the useQuery hook to fetch data from your GraphQL API. Here's an example of how to use Apollo Client inside a React component:
+
+javascript
+Copy code
+import React from 'react';
+import { useQuery, gql } from '@apollo/client';
+
+const GET_DATA = gql`
+  query GetData {
+    items {
+      id
+      name
+      description
+    }
+  }
+`;
+
+const YourComponent = () => {
+  const { loading, error, data } = useQuery(GET_DATA);
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
+  return (
+    <div>
+      {data.items.map((item) => (
+        <div key={item.id}>
+          <h3>{item.name}</h3>
+          <p>{item.description}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default YourComponent;
+4. Embedding Your React Component in a Web Component:
+If you're embedding this React component into a web component (like an Aura or LWC component), make sure that your build process properly bundles React and Apollo Client.
+
+You can render your React component in the web component like this:
+
+javascript
+Copy code
+import React from 'react';
+import ReactDOM from 'react-dom';
+import App from './App';
+
+class MyWebComponent extends HTMLElement {
+  connectedCallback() {
+    ReactDOM.render(<App />, this);
+  }
+}
+
+customElements.define('my-web-component', MyWebComponent);
+5. Load the Web Component in Your Application:
+Finally, you can load this web component wherever needed:
+
+html
+Copy code
+<my-web-component></my-web-component>
+Summary:
+Install @apollo/client and graphql.
+Set up Apollo Client with your GraphQL endpoint.
+Use the useQuery hook in your React component to fetch data.
+Embed the React component into a web component and render it.
+This setup will allow you to fetch data from a GraphQL API using Apollo Client and display it within your React.js web component.
