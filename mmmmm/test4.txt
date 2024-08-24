@@ -1,0 +1,153 @@
+To call a GraphQL API in an Aura component using Named Credentials, you need to follow these steps:
+
+Step 1: Set Up Named Credentials
+Create an External Credential (If Needed)
+
+Navigate to Setup > External Credentials if your authentication method requires it, such as OAuth 2.0.
+Configure the external credential with the appropriate authentication method.
+Create Named Credentials
+
+Go to Setup > Named Credentials.
+
+Click New Named Credential and fill in the details:
+
+Label: Give it a descriptive label (e.g., "MyGraphQLAPI").
+Name: A unique API name (e.g., "My_GraphQL_API").
+URL: The base URL of your GraphQL API (e.g., https://your-graphql-endpoint.com).
+Identity Type: Choose "Named Principal" or "Per User" based on your needs.
+Authentication Protocol: Choose the appropriate method (e.g., OAuth 2.0, Basic Authentication).
+External Credential: Link to the External Credential if needed.
+Save the Named Credential.
+
+Step 2: Create an Apex Controller to Make the API Call
+Create an Apex Controller
+
+Use an Apex controller to call the GraphQL API via the Named Credential.
+GraphQLController.apex:
+
+apex
+Copy code
+public with sharing class GraphQLController {
+    @AuraEnabled(cacheable=true)
+    public static String callGraphQLApi(String graphQLQuery) {
+        HttpRequest req = new HttpRequest();
+        req.setEndpoint('callout:My_GraphQL_API/graphql');  // Replace with your Named Credential API name and endpoint
+        req.setMethod('POST');
+        req.setHeader('Content-Type', 'application/json');
+        req.setBody(JSON.stringify(new Map<String, String>{'query' => graphQLQuery}));
+
+        Http http = new Http();
+        HttpResponse res = http.send(req);
+
+        if (res.getStatusCode() == 200) {
+            return res.getBody();
+        } else {
+            throw new CalloutException('Error from API: ' + res.getStatusCode() + ' ' + res.getStatus());
+        }
+    }
+}
+Explanation:
+
+req.setEndpoint: Uses the Named Credential (My_GraphQL_API) to call the GraphQL endpoint.
+req.setBody: Sets the body of the request to contain the GraphQL query.
+Step 3: Create the Aura Component
+Create the Aura Component
+
+In Salesforce, go to Setup > Developer Console. Create a new Aura component named GraphQLComponent.
+
+Define the Aura Component
+
+GraphQLComponent.cmp:
+
+xml
+Copy code
+<aura:component implements="flexipage:availableForAllPageTypes,force:appHostable" access="global">
+    <aura:attribute name="queryResult" type="String" />
+    <aura:attribute name="isLoading" type="Boolean" default="true" />
+    <aura:attribute name="errorMessage" type="String" />
+
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}" />
+
+    <div aura:id="graphqlResult">
+        <aura:if isTrue="{!v.isLoading}">
+            <lightning:spinner alternativeText="Loading" size="medium" />
+        <aura:set attribute="else">
+            <aura:if isTrue="{!v.errorMessage}">
+                <div class="slds-text-color_error">{!v.errorMessage}</div>
+            <aura:set attribute="else">
+                <pre>{!v.queryResult}</pre>
+            </aura:set>
+        </aura:if>
+    </div>
+</aura:component>
+GraphQLComponentController.js:
+
+javascript
+Copy code
+({
+    doInit: function(component, event, helper) {
+        helper.callGraphQLApi(component);
+    }
+})
+Create the Helper for the Component
+
+GraphQLComponentHelper.js:
+
+javascript
+Copy code
+({
+    callGraphQLApi: function(component) {
+        let action = component.get("c.callGraphQLApi");
+        let graphQLQuery = `
+            query {
+                user(id: "1") {
+                    id
+                    name
+                    email
+                }
+            }
+        `;
+
+        action.setParams({ graphQLQuery: graphQLQuery });
+
+        action.setCallback(this, function(response) {
+            let state = response.getState();
+            if (state === "SUCCESS") {
+                let result = response.getReturnValue();
+                component.set("v.queryResult", JSON.stringify(JSON.parse(result), null, 2));
+            } else {
+                component.set("v.errorMessage", "Error calling GraphQL API.");
+            }
+            component.set("v.isLoading", false);
+        });
+
+        component.set("v.isLoading", true);
+        $A.enqueueAction(action);
+    }
+})
+Explanation:
+
+The callGraphQLApi method is called during component initialization to fetch data from the GraphQL API.
+The action.setParams method passes the GraphQL query to the Apex controller.
+The result is parsed and displayed in the component.
+Step 4: Add the Aura Component to a Lightning Page
+Navigate to the Lightning App Builder
+
+Go to Setup > Lightning App Builder.
+Create or edit a Lightning page.
+Add the Aura Component to the Page
+
+Drag the GraphQLComponent component onto the page.
+Save and Activate the Page
+
+Save your changes and activate the page.
+Step 5: Verify the Integration
+Navigate to the page where you added the Aura component. The component should render the results of the GraphQL query.
+Summary
+By following these steps, you have successfully set up a Named Credential to securely connect to a GraphQL API and created an Aura component to display the data retrieved from the API. This approach adheres to Salesforce’s best practices by leveraging Named Credentials to securely store and manage authentication details, ensuring a secure and scalable integration with external services.
+
+
+
+
+
+
