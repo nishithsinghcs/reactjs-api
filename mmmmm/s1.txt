@@ -7,3 +7,14 @@ The SpeechRecognition API in JavaScript, while powerful, comes with several draw
 5. Limited Customization: The SpeechRecognition API offers limited customization options. Developers have minimal control over the recognition process, such as customizing language models or tweaking the sensitivity to certain words or phrases. This can be restrictive for applications requiring highly tailored speech recognition.
 6. Limited Event Handling: The event system in the SpeechRecognition API is somewhat limited. For example, handling partial results or implementing custom error-handling logic can be challenging due to the way the API handles recognition sessions.
 7. Platform Variations: The API might behave differently on different platforms or devices. For instance, speech recognition performance might vary between desktop and mobile environments due to differences in microphone quality or background noise levels.
+
+
+
+
+
+1. Privacy Concerns:
+Transmission of Audio Data: Many implementations of the SpeechRecognition API (such as those provided by major browsers) often transmit audio data to external servers for processing. This could expose sensitive user information to third parties, which is a significant risk in a banking context where confidentiality is paramount.
+Data Handling: Even if the data is anonymized, there's still the potential for sensitive information to be intercepted or misused. In banking, where data protection is critical, this could lead to compliance issues, especially with regulations like GDPR, CCPA, or similar data protection laws.
+2. Security Risks:
+Man-in-the-Middle Attacks: The transmission of audio data to external servers could be intercepted by malicious actors if not properly secured. Ensuring end-to-end encryption is vital, but this alone might not mitigate all risks.
+Phishing and Voice Spoofing: Attackers could potentially exploit voice data for phishing or voice spoofing attacks, leading to unauthorized access to accounts or confidential information.
