@@ -1,0 +1,39 @@
+import java.util.HashMap;
+
+public class CustomHashMap<T> {
+    private HashMap<String, T> map;
+
+    public CustomHashMap() {
+        this.map = new HashMap<>();
+    }
+
+    // Add a key-value pair to the map
+    public void put(String key, T value) {
+        map.put(key, value);
+    }
+
+    // Get a value by key
+    public T get(String key) {
+        return map.get(key);
+    }
+
+    // Remove a key-value pair by key
+    public T remove(String key) {
+        return map.remove(key);
+    }
+
+    // Check if the map contains a key
+    public boolean containsKey(String key) {
+        return map.containsKey(key);
+    }
+
+    // Get the size of the map
+    public int size() {
+        return map.size();
+    }
+
+    // Clear all entries in the map
+    public void clear() {
+        map.clear();
+    }
+}
