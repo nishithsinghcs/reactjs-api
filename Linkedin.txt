@@ -1,0 +1,48 @@
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
+
+public class LinkedInService {
+
+    private final RestTemplate restTemplate;
+
+    public LinkedInService(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    public LinkedInLeadResponse getLeadFormResponses(String accessToken, String leadGenFormId, String sponsoredAccountId) {
+        try {
+            // Properly format and encode the URN
+            String sponsoredAccountUrn = "urn:li:sponsoredAccount:" + sponsoredAccountId;
+            String encodedUrn = URLEncoder.encode(sponsoredAccountUrn, "UTF-8");
+
+            // Build the URL with encoded parameters
+            String url = UriComponentsBuilder.fromHttpUrl("https://api.linkedin.com/v2/leadFormResponses")
+                    .queryParam("q", "owner=(sponsoredAccount:" + encodedUrn + ")")
+                    .queryParam("leadGenFormId", leadGenFormId)
+                    .queryParam("leadType", "SPONSORED")
+                    .build()
+                    .encode()
+                    .toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Bearer " + accessToken);
+
+            HttpEntity<String> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<LinkedInLeadResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    LinkedInLeadResponse.class
+            );
+
+            return response.getBody();
+
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error encoding URN", e);
+        }
+    }
+}
